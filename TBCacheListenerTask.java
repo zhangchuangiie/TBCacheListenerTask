@@ -23,23 +23,23 @@ public class TBCacheListenerTask implements CommandLineRunner {
     @Resource
     private BaseMapper baseMapper;
 
-    private Map<Long, JSONObject> myMap = new ConcurrentHashMap<Long,JSONObject>();
+    private Map<Object, JSONObject> myMap = new ConcurrentHashMap<Object,JSONObject>();
     //hashmap是线程不安全的，而hashtable性能低下，所以concurrentHashMap应运而生。
 
     //获得实时集合(外部调用1)
-    public Map<Long, JSONObject> getMyMap() {
+    public Map<Object, JSONObject> getMyMap() {
         return myMap;
     }
 
     //获得实时集合迭代器，线程安全的(外部调用2)
-    public Iterator<Map.Entry<Long, JSONObject>> getIterator(){
-        Iterator<Map.Entry<Long, JSONObject>> iterator = myMap.entrySet().iterator();
+    public Iterator<Map.Entry<Object, JSONObject>> getIterator(){
+        Iterator<Map.Entry<Object, JSONObject>> iterator = myMap.entrySet().iterator();
         return iterator;
     }
 
     //获得当前集合快照，不是绝对线程安全的(外部调用3)
-    public Map<Long, JSONObject> getSnapshot(){
-        Map<Long, JSONObject> myMapSnapshot = new ConcurrentHashMap<Long,JSONObject>();
+    public Map<Object, JSONObject> getSnapshot(){
+        Map<Object, JSONObject> myMapSnapshot = new ConcurrentHashMap<Object,JSONObject>();
 
         long start = System.currentTimeMillis();   //获取开始时间
         myMapSnapshot.putAll(myMap);
@@ -51,7 +51,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
 
     //获得当前集合快照(List版本)，不是绝对线程安全的(外部调用4)
     public List<JSONObject> getSnapshotList(){
-        Map<Long, JSONObject> myMapSnapshot = new ConcurrentHashMap<Long,JSONObject>();
+        Map<Object, JSONObject> myMapSnapshot = new ConcurrentHashMap<Object,JSONObject>();
 
         long start = System.currentTimeMillis();   //获取开始时间
         myMapSnapshot.putAll(myMap);
@@ -63,12 +63,12 @@ public class TBCacheListenerTask implements CommandLineRunner {
     }
 
     //containsKey(外部调用5)
-    public boolean containsKey(Long id) {
+    public boolean containsKey(Object id) {
         return myMap.containsKey(id);
     }
 
     //getValue(外部调用6)
-    public JSONObject getValue(Long id) {
+    public JSONObject getValue(Object id) {
         return myMap.get(id);
     }
 
@@ -82,29 +82,39 @@ public class TBCacheListenerTask implements CommandLineRunner {
         return myMap.keySet().toArray();
     }
 
-
-    //如果有业务逻辑可以在这里添加
-    private void addCallback(long data_id){
-    }
-    //如果有业务逻辑可以在这里添加
-    private void uptCallback(long data_id){
-    }
-    //如果有业务逻辑可以在这里添加
-    private void delCallback(long data_id){
+    //put(假写接口1)
+    public JSONObject put(Object key, JSONObject value) {
+        return myMap.put(key,value);
     }
 
+    //remove(假写接口2)
+    public JSONObject remove(Object key) {
+        return myMap.remove(key);
+    }
 
-    private int initFlag = 0;
+
+    //如果有业务逻辑可以在这里添加
+    private void addCallback(Object data_id){
+    }
+    //如果有业务逻辑可以在这里添加
+    private void uptCallback(Object data_id){
+    }
+    //如果有业务逻辑可以在这里添加
+    private void delCallback(Object data_id){
+    }
+
+
+    //private int initFlag = 0;
     private long id = 0;
     private String startTimeStr = TimeUtil.getCurrentDateString();
 
 
     private String initSql = "SELECT * FROM `user`";
-    private Map<Long,JSONObject> initHandler(){
-        Map<Long, JSONObject> myMap = new ConcurrentHashMap<Long,JSONObject>();
+    private Map<Object,JSONObject> initHandler(){
+        Map<Object, JSONObject> myMap = new ConcurrentHashMap<Object,JSONObject>();
         List<LinkedHashMap<String, Object>> result = baseMapper.select(initSql);
         for (LinkedHashMap<String, Object> o : result) {
-            long data_id = (long) o.get("id");
+            Object data_id = o.get("id");
             myMap.put(data_id,JSONObject.parseObject(JSON.toJSONString(o)));
         }
         return myMap;
@@ -116,7 +126,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
     }
 
     private String addSql = "SELECT * FROM `user` where id = ?";
-    private void addHandler(long data_id){
+    private void addHandler(Object data_id){
         LinkedHashMap<String, Object> o = baseMapper.get(addSql, data_id);
         System.out.println("新增数据 = " + JSON.toJSONString(o));
         myMap.put(data_id,JSONObject.parseObject(JSON.toJSONString(o)));
@@ -126,7 +136,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
     }
 
     private String uptSql = "SELECT * FROM `user` where id = ?";
-    private void uptHandler(long data_id){
+    private void uptHandler(Object data_id){
         LinkedHashMap<String, Object> o = baseMapper.get(uptSql, data_id);
         System.out.println("修改数据 = " + JSON.toJSONString(o));
         myMap.put(data_id,JSONObject.parseObject(JSON.toJSONString(o)));
@@ -136,7 +146,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
     }
 
 
-    private void delHandler(long data_id){
+    private void delHandler(Object data_id){
         System.out.println("删除数据 = " + data_id);
         myMap.remove(data_id);
         System.out.println("当前数据量："+ myMap.size());
@@ -153,7 +163,6 @@ public class TBCacheListenerTask implements CommandLineRunner {
     private void monitorTasks() {
 
         long start=System.currentTimeMillis();   //获取开始时间
-
         List<LinkedHashMap<String, Object>> result =  monitorHandler();
         System.out.println("监听表名：user");
         System.out.println("监听刷新时间："+ TimeUtil.getCurrentDateString());
@@ -163,10 +172,9 @@ public class TBCacheListenerTask implements CommandLineRunner {
         }else{
             System.out.println("监听的库表发生变化");
             System.out.println(JSON.toJSONString(result));
-
             for (LinkedHashMap<String, Object> o : result) {
                 String type = (String) o.get("type");
-                long data_id = (long) o.get("data_id");
+                Object data_id = o.get("data_id");
                 System.out.println(type+":"+data_id);
                 ////TODO
                 switch (type)//值必须是整型或者字符型
@@ -184,7 +192,6 @@ public class TBCacheListenerTask implements CommandLineRunner {
             }
             id = (long) result.get(result.size()-1).get("id");
         }
-
         long end=System.currentTimeMillis(); //获取结束时间
         System.out.println("程序运行时间： "+(end-start)+"ms");
 
@@ -210,7 +217,6 @@ public class TBCacheListenerTask implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         myMap = initHandler();
-        initFlag = 1;
         System.out.println("初始化加载数据 = " + myMap.size());
 
     }
