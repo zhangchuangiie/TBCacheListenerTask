@@ -6,7 +6,9 @@
 2. 为监听业务库表user创建触发器，见user.sql
 3. 集成TBCacheListenerTask类，内置初始化同步，定时刷新同步，当监听业务库表user出现增删改变化时，自动同步并触发回调函数，三个回调函数可以自定义，见TBCacheListenerTask.java
 4. 其他业务类需要访问监听业务库表user的内存镜像时，提供了8个外部调用接口，见TBCacheListenerTask.java
-5. 其中使用的BaseMapper类见https://github.com/zhangchuangiie/SimpleMybatis
+5. 另外，提供两个假写接口，方便本地即时生效，见TBCacheListenerTask.java
+6. 其中使用的BaseMapper类见https://github.com/zhangchuangiie/SimpleMybatis
+7. 提供时间格式化工具类，见TimeUtil.java
 
 ## 适用场景：
 1.需要Zookeeper通知机制，但是又是轻量工程只有数据库一种外部组件
