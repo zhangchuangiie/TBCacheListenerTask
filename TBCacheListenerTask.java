@@ -23,6 +23,10 @@ public class TBCacheListenerTask implements CommandLineRunner {
     @Resource
     private BaseMapper baseMapper;
 
+
+    private String monitorTable = "`user`";
+    private String monitorKey = "id";
+
     private Map<Object, JSONObject> myMap = new ConcurrentHashMap<Object,JSONObject>();
     //hashmap是线程不安全的，而hashtable性能低下，所以concurrentHashMap应运而生。
 
@@ -56,7 +60,8 @@ public class TBCacheListenerTask implements CommandLineRunner {
         long start = System.currentTimeMillis();   //获取开始时间
         myMapSnapshot.putAll(myMap);
         List<JSONObject> myList = new ArrayList<JSONObject>(myMapSnapshot.values());
-
+        ///可以根据需求进行排序
+        myList.sort(Comparator.comparing(obj -> ((JSONObject) obj).getObject(monitorKey,Long.TYPE)).reversed());
         long end = System.currentTimeMillis(); //获取结束时间
         System.out.println("@@@@@@@@@@程序运行时间： " + (end - start) + "ms");
         return myList;
@@ -109,13 +114,13 @@ public class TBCacheListenerTask implements CommandLineRunner {
     private String startTimeStr = TimeUtil.getCurrentDateString();
 
 
-    private String initSql = "SELECT * FROM `user`";
+    private String initSql = "SELECT * FROM "+monitorTable;    //可以根据情况加条件筛选
     private Map<Object,JSONObject> initHandler(){
         Map<Object, JSONObject> myMap = new ConcurrentHashMap<Object,JSONObject>();
         List<LinkedHashMap<String, Object>> result = baseMapper.select(initSql);
         for (LinkedHashMap<String, Object> o : result) {
-            Object data_id = o.get("id");
-            myMap.put(data_id,JSONObject.parseObject(JSON.toJSONString(o)));
+            Object key_id = o.get(monitorKey);   //monitorKey可以不是id
+            myMap.put(key_id,JSONObject.parseObject(JSON.toJSONString(o)));
         }
         return myMap;
     }
@@ -125,7 +130,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
         return baseMapper.select(monitorSql, id,startTimeStr);
     }
 
-    private String addSql = "SELECT * FROM `user` where id = ?";
+    private String addSql = "SELECT * FROM "+monitorTable+" where id = ?";
     private void addHandler(Object data_id){
         LinkedHashMap<String, Object> o = baseMapper.get(addSql, data_id);
         System.out.println("新增数据 = " + JSON.toJSONString(o));
@@ -135,7 +140,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
         addCallback(data_id);
     }
 
-    private String uptSql = "SELECT * FROM `user` where id = ?";
+    private String uptSql = "SELECT * FROM "+monitorTable+" where id = ?";
     private void uptHandler(Object data_id){
         LinkedHashMap<String, Object> o = baseMapper.get(uptSql, data_id);
         System.out.println("修改数据 = " + JSON.toJSONString(o));
@@ -211,6 +216,17 @@ public class TBCacheListenerTask implements CommandLineRunner {
 
     }
 
+
+    //添加定时任务(每日凌晨做一次纠正动作)
+    @Scheduled(cron = "0 15 0 * * ?") //每天00:15:00执行
+    private void refreshTasks() {
+
+        long start=System.currentTimeMillis();   //获取开始时间
+        myMap = initHandler();
+        long end=System.currentTimeMillis(); //获取结束时间
+        System.out.println("程序运行时间： "+(end-start)+"ms");
+
+    }
 
 
     //添加加载启动
