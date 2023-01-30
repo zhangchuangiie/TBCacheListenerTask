@@ -15,6 +15,7 @@
 7. 其中使用的BaseMapper类见https://github.com/zhangchuangiie/SimpleMybatis
 8. 提供时间格式化工具类，见TimeUtil.java
 9. user_listener与UserTBCacheListenerTask配对使用，每增加一个需要监听的业务表aaa，就增加一对aaa_listener与AaaTBCacheListenerTask
+10. 监听记录表的data_id存的是业务表的id，另外Map的key可以不是id,可以是业务表的另一个自定义字段
 
 
 ## 联系人：
