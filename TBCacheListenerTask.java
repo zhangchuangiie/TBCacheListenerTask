@@ -111,8 +111,8 @@ public class TBCacheListenerTask implements CommandLineRunner {
 
 
     //private int initFlag = 0;
-    private long id = 0;
-    private String startTimeStr = TimeUtil.getCurrentDateString();
+    private long id = 0;   ///含义是currentMaxIdHadSynchronized
+    //private String startTimeStr = TimeUtil.getCurrentDateString();
 
 
     private String initSql = "SELECT * FROM "+monitorTable;    //可以根据情况加条件筛选
@@ -126,9 +126,9 @@ public class TBCacheListenerTask implements CommandLineRunner {
         return myMap;
     }
 
-    private String monitorSql = "SELECT * FROM "+ListenerTable+" where id > ? and time > ?";
+    private String monitorSql = "SELECT * FROM "+ListenerTable+" where id > ?";     ///时钟问题，这个条件先不加and time > ?";
     private List<LinkedHashMap<String, Object>> monitorHandler(){
-        return baseMapper.select(monitorSql, id,startTimeStr);
+        return baseMapper.select(monitorSql, id);
     }
 
     private String addSql = "SELECT * FROM "+monitorTable+" where id = ?";
@@ -229,10 +229,25 @@ public class TBCacheListenerTask implements CommandLineRunner {
 
     }
 
+    private void initMaxId() {
+
+        long start=System.currentTimeMillis();   //获取开始时间
+        //先取当前最大监听记录ID后初始加载原始业务表，理论上可能会重复刷新最新变化，但是不会丢失变化，重复刷新一般问题不大
+        String maxIdSql = "SELECT IFNULL(MAX(id),0) as max_id FROM "+ListenerTable;
+        Long maxId = baseMapper.count(maxIdSql);
+        id = maxId;
+        System.out.println("maxId = " + maxId);
+        long end=System.currentTimeMillis(); //获取结束时间
+        System.out.println("程序运行时间： "+(end-start)+"ms");
+
+    }
+
 
     //添加加载启动
     @Override
     public void run(String... args) throws Exception {
+
+        initMaxId();
         myMap = initHandler();
         System.out.println("初始化加载数据 = " + myMap.size());
 
