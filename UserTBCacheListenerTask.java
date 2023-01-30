@@ -162,7 +162,7 @@ public class UserTBCacheListenerTask implements CommandLineRunner {
 
 
     //添加定时任务
-    @Scheduled(cron = "0/60 * * * * ?")
+    @Scheduled(cron = "0/60 * * * * ?")     //可以根据需要改短，一秒都没问题，因为监听记录表几乎都是空的
     //@Scheduled(cron = "0 5 0 * * ?")每天00:05:00执行
     //或直接指定时间间隔，例如：5秒
     //@Scheduled(fixedRate=5000)
