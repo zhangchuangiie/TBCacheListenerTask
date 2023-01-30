@@ -26,6 +26,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
 
     private String monitorTable = "`user`";
     private String monitorKey = "id";
+    private String ListenerTable = "`user_listener`";
 
     private Map<Object, JSONObject> myMap = new ConcurrentHashMap<Object,JSONObject>();
     //hashmap是线程不安全的，而hashtable性能低下，所以concurrentHashMap应运而生。
@@ -125,7 +126,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
         return myMap;
     }
 
-    private String monitorSql = "SELECT * FROM `user_listener` where id > ? and time > ?";
+    private String monitorSql = "SELECT * FROM "+ListenerTable+" where id > ? and time > ?";
     private List<LinkedHashMap<String, Object>> monitorHandler(){
         return baseMapper.select(monitorSql, id,startTimeStr);
     }
@@ -202,7 +203,7 @@ public class TBCacheListenerTask implements CommandLineRunner {
 
     }
 
-    private String clearSql = "delete FROM `user_listener` where time < ?";
+    private String clearSql = "delete FROM "+ListenerTable+" where time < ?";
     //添加定时任务(清理过期修改动作)
     @Scheduled(cron = "0 5 0 * * ?") //每天00:05:00执行
     private void clearTasks() {
