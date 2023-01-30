@@ -100,14 +100,33 @@ public class UserTBCacheListenerTask implements CommandLineRunner {
 
 
     //如果有业务逻辑可以在这里添加
-    private void addCallback(Object data_id){
+    private void addCallback(Object key_id,Object data_id){
     }
     //如果有业务逻辑可以在这里添加
-    private void uptCallback(Object data_id){
+    private void uptCallback(Object key_id,Object data_id){
     }
     //如果有业务逻辑可以在这里添加
-    private void delCallback(Object data_id){
+    private void delCallback(Object key_id,Object data_id){
     }
+
+    private Object getKeyById(Object data_id){
+
+        Object key_id = null;
+        Iterator<Map.Entry<Object, JSONObject>> iterator = myMap.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Object, JSONObject> o = iterator.next();
+            //System.out.println(o.getKey() + ":" + o.getValue().toJSONString());
+            Object id = o.getValue().getLong("id");   //id
+            //System.out.println("id.getClass().getName() = " + id.getClass().getName());
+            //System.out.println("data_id.getClass().getName() = " + data_id.getClass().getName());
+            if(id.equals(data_id)){
+                key_id = o.getKey();
+                return key_id;
+            }
+        }
+        return key_id;
+    }
+
 
 
     //private int initFlag = 0;
@@ -135,34 +154,44 @@ public class UserTBCacheListenerTask implements CommandLineRunner {
     private void addHandler(Object data_id){
         LinkedHashMap<String, Object> o = baseMapper.get(addSql, data_id);
         System.out.println("新增数据 = " + JSON.toJSONString(o));
-        myMap.put(data_id,JSONObject.parseObject(JSON.toJSONString(o)));
+        Object key_id = o.get(monitorKey);   //monitorKey可以不是id
+        myMap.put(key_id,JSONObject.parseObject(JSON.toJSONString(o)));
         System.out.println("当前数据量："+ myMap.size());
         System.out.println("当前数据："+ JSON.toJSONString(myMap));
-        addCallback(data_id);
+        addCallback(key_id,data_id);
     }
 
     private String uptSql = "SELECT * FROM "+monitorTable+" where id = ?";
     private void uptHandler(Object data_id){
         LinkedHashMap<String, Object> o = baseMapper.get(uptSql, data_id);
         System.out.println("修改数据 = " + JSON.toJSONString(o));
-        myMap.put(data_id,JSONObject.parseObject(JSON.toJSONString(o)));
+        Object key_id = o.get(monitorKey);   //monitorKey可以不是id
+        myMap.put(key_id,JSONObject.parseObject(JSON.toJSONString(o)));
         System.out.println("当前数据量："+ myMap.size());
         System.out.println("当前数据："+ JSON.toJSONString(myMap));
-        uptCallback(data_id);
+        uptCallback(key_id,data_id);
     }
 
 
     private void delHandler(Object data_id){
         System.out.println("删除数据 = " + data_id);
-        myMap.remove(data_id);
+        long start=System.currentTimeMillis();   //获取开始时间
+        Object key_id = getKeyById(data_id);
+        long end=System.currentTimeMillis(); //获取结束时间
+        System.out.println("DDDDDDDDDDDDDDDDDDDDDD程序运行时间： "+(end-start)+"ms");
+        if(key_id != null){
+            myMap.remove(key_id);
+        }else{
+            System.out.println("data_id不存在 = " + data_id);
+        }
         System.out.println("当前数据量："+ myMap.size());
         System.out.println("当前数据："+ JSON.toJSONString(myMap));
-        delCallback(data_id);
+        delCallback(key_id,data_id);
     }
 
 
     //添加定时任务
-    @Scheduled(cron = "0/60 * * * * ?")     //可以根据需要改短，一秒都没问题，因为监听记录表几乎都是空的
+    @Scheduled(cron = "0/30 * * * * ?")     //可以根据需要改短，一秒都没问题，因为监听记录表几乎都是空的
     //@Scheduled(cron = "0 5 0 * * ?")每天00:05:00执行
     //或直接指定时间间隔，例如：5秒
     //@Scheduled(fixedRate=5000)
@@ -170,7 +199,7 @@ public class UserTBCacheListenerTask implements CommandLineRunner {
 
         long start=System.currentTimeMillis();   //获取开始时间
         List<LinkedHashMap<String, Object>> result =  monitorHandler();
-        System.out.println("监听表名：user");
+        System.out.println("监听表名："+monitorTable);
         System.out.println("监听刷新时间："+ TimeUtil.getCurrentDateString());
         System.out.println("监听版本号："+ id);
         if(result.size() == 0){
@@ -223,6 +252,7 @@ public class UserTBCacheListenerTask implements CommandLineRunner {
     private void refreshTasks() {
 
         long start=System.currentTimeMillis();   //获取开始时间
+        initMaxId();
         myMap = initHandler();
         long end=System.currentTimeMillis(); //获取结束时间
         System.out.println("程序运行时间： "+(end-start)+"ms");
@@ -235,8 +265,11 @@ public class UserTBCacheListenerTask implements CommandLineRunner {
         //先取当前最大监听记录ID后初始加载原始业务表，理论上可能会重复刷新最新变化，但是不会丢失变化，重复刷新一般问题不大
         String maxIdSql = "SELECT IFNULL(MAX(id),0) as max_id FROM "+ListenerTable;
         Long maxId = baseMapper.count(maxIdSql);
-        id = maxId;
-        System.out.println("maxId = " + maxId);
+        if(maxId>0){
+            id = maxId;
+            System.out.println("maxId = " + maxId);
+        }
+
         long end=System.currentTimeMillis(); //获取结束时间
         System.out.println("程序运行时间： "+(end-start)+"ms");
 
